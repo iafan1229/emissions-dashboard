@@ -7,8 +7,8 @@
 |---|---|---|---|
 | 1 | 프로젝트 초기화 + 핵심 lib 모듈 | §1~6 | ✅ 완료 |
 | 2 | Context Provider + 공통 레이아웃 + 대시보드 메인 | §7~8 | ✅ 완료 |
-| 3 | 제품 상세 페이지 + 4개 차트 + 리포트 작성 폼 | §9 | ⏳ 대기 |
-| 4 | 리포트 목록 + 활동 데이터 입력 폼 | §10~11 | ⏳ 대기 |
+| 3 | 제품 상세 페이지 + 4개 차트 + 리포트 작성 폼 | §9 | ✅ 완료 |
+| 4 | 리포트 목록 + 활동 데이터 입력 폼 | §10~11 | ✅ 완료 |
 | 5 | README + 스크린샷/캡쳐 + 체크리스트 점검 | §13 | ⏳ 대기 |
 
 ---
@@ -55,47 +55,41 @@
 
 ---
 
-## ⏳ Phase 3 — 제품 상세 페이지 + 4개 차트 + 리포트 작성 폼
+## ✅ Phase 3 — 제품 상세 페이지 + 4개 차트 + 리포트 작성 폼
 
-### 범위 (spec.md §9)
-- [app/products/[id]/page.tsx](../app/products/) — 제품 상세 라우트
-- 4개 차트 컴포넌트:
-  - `components/products/LcaStageChart.tsx` — 원료조달/제조/운송유통 도넛 (Scope 함께 표시)
-  - `components/products/TimeSeriesChart.tsx` — 월별 배출량 추이 바 차트 + 기간 필터
-  - `components/products/ScopeChart.tsx` — Scope 1/2/3 도넛 + 월별 스택 바 + LCA 단계 툴팁
-  - `components/products/CompanyChart.tsx` — 회사별 가로 바 차트
-- `components/products/ReportForm.tsx` — 월 선택 후 Post 작성/수정 (저장 실패 시 롤백)
-
-### 핵심 고려사항
-- recharts 의 `PieChart`, `BarChart`, `Tooltip` 사용
-- `useMemo` 로 차트 데이터 가공 (월별 그룹핑, scope/stage 합산)
-- LCA 사용/폐기 단계는 "데이터 없음" 명시
-- Scope 1 은 0 kgCO₂e 명시
-- ReportForm 은 `useData().createOrUpdatePost` 호출 (롤백 이미 구현됨)
+### 작업
+- [lib/utils/chartHelpers.ts](../lib/utils/chartHelpers.ts) — 색상 팔레트, 단계↔Scope 매핑, 월 리스트, formatKgCO2e 등 공용 헬퍼
+- [components/products/LcaStageChart.tsx](../components/products/LcaStageChart.tsx) — 원료조달/제조/운송유통 도넛 + 단계별 Scope 라벨 + 사용/폐기 "데이터 없음"
+- [components/products/TimeSeriesChart.tsx](../components/products/TimeSeriesChart.tsx) — 월별 스택 바 (전기/원소재/운송) + 시작/종료 월 필터
+- [components/products/ScopeChart.tsx](../components/products/ScopeChart.tsx) — Scope 1/2/3 도넛 + 월별 Scope 스택 바 + 커스텀 툴팁에 LCA 단계 표시
+- [components/products/CompanyChart.tsx](../components/products/CompanyChart.tsx) — 회사별 가로 스택 바 (Scope 2/3) + 데이터 없는 회사도 0으로 표시
+- [components/products/ReportForm.tsx](../components/products/ReportForm.tsx) — 월 selector + 기존 Post 자동 로드 + 작성/수정 모드 분기 + 실패 시 에러 메시지 (롤백은 DataContext 단)
+- [app/products/[id]/page.tsx](../app/products/) — 4개 차트 + ReportForm 통합 + 헤더에 회사명/총 배출량 표시
 
 ### 검증
-- `yarn type-check` 통과
-- 4개 차트가 모두 렌더링되고, 합계가 Phase 1 검증값과 일치
-- 리포트 작성/수정 + 강제 실패(15% 확률) 재시도로 롤백 동작 확인
+- `yarn type-check` 통과 (recharts v3 의 `TooltipContentProps` + 함수형 `content={Component}` 패턴 사용)
+- `/products/ct-045` 200 OK, 컴파일 에러 없음
+- ⚠️ 차트 시각 검증은 브라우저에서 직접 확인 필요 (`http://localhost:3000/products/ct-045`)
 
 ---
 
-## ⏳ Phase 4 — 리포트 목록 + 활동 데이터 입력 폼
+## ✅ Phase 4 — 리포트 목록 + 활동 데이터 입력 폼
 
-### 범위 (spec.md §10~11)
-- [app/reports/page.tsx](../app/reports/) — 전체 Post 목록
-  - `components/reports/ReportList.tsx`, `components/reports/ReportCard.tsx`
-- [app/activities/new/page.tsx](../app/activities/new/) — 활동 데이터 입력 폼
-  - `components/activities/ActivityForm.tsx`
-  - 회사 → 제품 cascade select
-  - 활동 유형 → 설명/단위 자동 연동 (전기→한국전력/kWh, 원소재→플라스틱 1,2/kg, 운송→트럭/ton-km)
-  - 유효성 검사 4종 (필수/0 초과/숫자/날짜)
-  - 성공 시 `/products/[productId]` 이동, 실패 시 에러 메시지
+### 작업
+- [components/reports/ReportCard.tsx](../components/reports/ReportCard.tsx) — 제목/제품명/작성월/내용 요약(80자) + 제품 상세 링크
+- [app/reports/page.tsx](../app/reports/page.tsx) — Post 전체 목록 (작성월 내림차순) + 빈 상태 메시지
+- [components/activities/ActivityForm.tsx](../components/activities/ActivityForm.tsx) — 7개 필드 + 4종 유효성 검사 + cascade selects
+  - 회사 → 제품 cascade (회사 변경 시 제품 리셋, 제품 없는 회사는 안내 메시지)
+  - 활동 유형 → 설명 cascade (전기→한국전력 / 원소재→플라스틱 1,2 / 운송→트럭)
+  - 설명 → 단위 자동 설정 (kWh / kg / ton-km, readonly)
+  - 유효성: 필수("필수 항목입니다.") / 숫자("숫자를 입력해주세요.") / 양수("0보다 큰 값을 입력해주세요.") / 날짜형식("올바른 날짜 형식을 입력해주세요.")
+  - 성공 시 `router.push('/products/[productId]')`, 실패 시 인라인 에러 메시지
+- [app/activities/new/page.tsx](../app/activities/new/page.tsx) — ActivityForm 래퍼 (loading/error 처리)
 
 ### 검증
-- `/reports` 에서 Post 목록 표시
-- `/activities/new` 에서 입력 → 저장 → 리다이렉트 + ProductCard 의 총 배출량 갱신 확인
-- 모든 유효성 에러 메시지 노출
+- `yarn type-check` 통과
+- `/reports` 200 OK, `/activities/new` 200 OK, dev 서버 에러 없음
+- ⚠️ 폼 상호작용 (cascade, 유효성, 저장 후 리다이렉트, 15% 실패 시 에러 메시지) 은 브라우저에서 직접 확인 필요
 
 ---
 
