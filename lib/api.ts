@@ -8,7 +8,7 @@ import {
 } from '@/lib/data/seed';
 
 const _countries: Country[] = [...seedCountries];
-const _companies: Company[] = [...seedCompanies];
+let _companies: Company[] = [...seedCompanies];
 let _products: Product[] = [...seedProducts];
 let _activityData: ActivityData[] = [...seedActivityData];
 let _posts: Post[] = [...seedPosts];
@@ -78,5 +78,15 @@ export async function createProduct(
   if (maybeFail()) throw new Error('Save failed');
   const created: Product = { ...p, id: crypto.randomUUID() };
   _products = [..._products, created];
+  return created;
+}
+
+export async function createCompany(
+  c: Omit<Company, 'id'>,
+): Promise<Company> {
+  await delay(jitter());
+  if (maybeFail()) throw new Error('Save failed');
+  const created: Company = { ...c, id: crypto.randomUUID() };
+  _companies = [..._companies, created];
   return created;
 }

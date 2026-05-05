@@ -46,7 +46,14 @@ const INITIAL_FORM: FormState = {
 
 export default function ActivityForm() {
   const router = useRouter();
-  const { companies, products, createActivity, createProduct } = useData();
+  const {
+    companies,
+    countries,
+    products,
+    createActivity,
+    createProduct,
+    createCompany,
+  } = useData();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<Errors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,6 +61,11 @@ export default function ActivityForm() {
   const [newProductName, setNewProductName] = useState('');
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyCountry, setNewCompanyCountry] = useState('');
+  const [companySaveError, setCompanySaveError] = useState<string | null>(null);
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => p.companyId === form.companyId),
@@ -78,6 +90,39 @@ export default function ActivityForm() {
       setIsAddingProduct(false);
       setNewProductName('');
       setProductSaveError(null);
+    }
+  };
+
+  const handleSaveCompany = async () => {
+    const trimmedName = newCompanyName.trim();
+    if (!trimmedName) {
+      setCompanySaveError('회사명을 입력해주세요.');
+      return;
+    }
+    if (!newCompanyCountry) {
+      setCompanySaveError('국가를 선택해주세요.');
+      return;
+    }
+    setCompanySaveError(null);
+    setIsSavingCompany(true);
+    try {
+      const created = await createCompany({
+        name: trimmedName,
+        country: newCompanyCountry,
+      });
+      setForm((prev) => ({ ...prev, companyId: created.id, productId: '' }));
+      setErrors((prev) => ({ ...prev, companyId: undefined }));
+      setIsAddingCompany(false);
+      setNewCompanyName('');
+      setNewCompanyCountry('');
+    } catch (err) {
+      setCompanySaveError(
+        err instanceof Error
+          ? `회사 추가에 실패했습니다. (${err.message})`
+          : '회사 추가에 실패했습니다.',
+      );
+    } finally {
+      setIsSavingCompany(false);
     }
   };
 
@@ -163,18 +208,94 @@ export default function ActivityForm() {
       className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6"
     >
       <Field label="회사" error={errors.companyId} required>
-        <select
-          value={form.companyId}
-          onChange={(e) => update('companyId', e.target.value)}
-          className={fieldCls(!!errors.companyId)}
-        >
-          <option value="">— 선택 —</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({c.country})
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-2">
+          <select
+            value={form.companyId}
+            onChange={(e) => update('companyId', e.target.value)}
+            className={fieldCls(!!errors.companyId)}
+          >
+            <option value="">— 선택 —</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.country})
+              </option>
+            ))}
+          </select>
+
+          {!isAddingCompany && (
+            <button
+              type="button"
+              onClick={() => setIsAddingCompany(true)}
+              className="self-start text-xs text-zinc-700 underline hover:text-zinc-900"
+            >
+              + 새 회사 추가
+            </button>
+          )}
+
+          {isAddingCompany && (
+            <div className="flex flex-col gap-2 rounded border border-zinc-200 bg-zinc-50 p-3">
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="text-zinc-700">회사명</span>
+                <input
+                  type="text"
+                  value={newCompanyName}
+                  onChange={(e) => {
+                    setNewCompanyName(e.target.value);
+                    setCompanySaveError(null);
+                  }}
+                  placeholder="예: Initech"
+                  className={fieldCls(!!companySaveError)}
+                  disabled={isSavingCompany}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="text-zinc-700">국가</span>
+                <select
+                  value={newCompanyCountry}
+                  onChange={(e) => {
+                    setNewCompanyCountry(e.target.value);
+                    setCompanySaveError(null);
+                  }}
+                  className={fieldCls(!!companySaveError)}
+                  disabled={isSavingCompany}
+                >
+                  <option value="">— 선택 —</option>
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveCompany}
+                  disabled={isSavingCompany}
+                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                >
+                  {isSavingCompany ? '추가 중...' : '추가'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingCompany(false);
+                    setNewCompanyName('');
+                    setNewCompanyCountry('');
+                    setCompanySaveError(null);
+                  }}
+                  disabled={isSavingCompany}
+                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-white"
+                >
+                  취소
+                </button>
+                {companySaveError && (
+                  <span className="text-xs text-red-600">{companySaveError}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </Field>
 
       <Field label="제품" error={errors.productId} required>

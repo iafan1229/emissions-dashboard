@@ -10,6 +10,7 @@ import {
 } from 'react';
 import {
   createActivity as apiCreateActivity,
+  createCompany as apiCreateCompany,
   createOrUpdatePost as apiCreateOrUpdatePost,
   createProduct as apiCreateProduct,
   fetchAllActivities,
@@ -45,6 +46,7 @@ type DataActions = {
     activity: Omit<ActivityData, 'id'>,
   ) => Promise<ActivityData>;
   createProduct: (product: Omit<Product, 'id'>) => Promise<Product>;
+  createCompany: (company: Omit<Company, 'id'>) => Promise<Company>;
 };
 
 type DataContextValue = DataState & DataActions;
@@ -157,6 +159,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [products],
   );
 
+  const createCompany = useCallback<DataActions['createCompany']>(
+    async (company) => {
+      const optimisticId = `__optimistic_${crypto.randomUUID()}`;
+      const optimistic: Company = { ...company, id: optimisticId };
+      const previous = companies;
+      setCompanies((prev) => [...prev, optimistic]);
+      try {
+        const saved = await apiCreateCompany(company);
+        setCompanies((prev) =>
+          prev.map((c) => (c.id === optimisticId ? saved : c)),
+        );
+        return saved;
+      } catch (err) {
+        setCompanies(previous);
+        throw err;
+      }
+    },
+    [companies],
+  );
+
   const value: DataContextValue = {
     countries,
     companies,
@@ -169,6 +191,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     createOrUpdatePost,
     createActivity,
     createProduct,
+    createCompany,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
