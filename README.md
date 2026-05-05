@@ -1,4 +1,4 @@
-# HanaLoop Emissions Dashboard
+# Emissions Dashboard
 
 CT-045 (컴퓨터 화면) 의 **PCF 전과정(LCA) 활동 데이터 배출량을 시각화** 하는 인터랙티브 대시보드.
 Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
