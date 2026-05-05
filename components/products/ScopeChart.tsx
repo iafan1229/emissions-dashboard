@@ -34,9 +34,15 @@ const SCOPES: GhgScope[] = ['scope1', 'scope2', 'scope3'];
 
 type ScopeChartProps = {
   emissions: GhgEmission[];
+  startMonth: string;
+  endMonth: string;
 };
 
-export default function ScopeChart({ emissions }: ScopeChartProps) {
+export default function ScopeChart({
+  emissions,
+  startMonth,
+  endMonth,
+}: ScopeChartProps) {
   const donutData = useMemo(() => {
     return SCOPES.map((scope) => ({
       scope,
@@ -48,7 +54,10 @@ export default function ScopeChart({ emissions }: ScopeChartProps) {
   }, [emissions]);
 
   const monthlyData = useMemo(() => {
-    return ALL_MONTHS_2025.map((month) => {
+    const months = ALL_MONTHS_2025.filter(
+      (m) => m >= startMonth && m <= endMonth,
+    );
+    return months.map((month) => {
       const monthly = emissions.filter((e) => e.yearMonth === month);
       return {
         month,
@@ -57,7 +66,7 @@ export default function ScopeChart({ emissions }: ScopeChartProps) {
         scope3: sumEmissions(monthly.filter((e) => e.scope === 'scope3')),
       };
     });
-  }, [emissions]);
+  }, [emissions, startMonth, endMonth]);
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-5">

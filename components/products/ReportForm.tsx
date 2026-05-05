@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '@/lib/contexts/DataContext';
 import { ALL_MONTHS_2025 } from '@/lib/utils/chartHelpers';
 
@@ -30,16 +30,13 @@ export default function ReportForm({ productId }: ReportFormProps) {
     [posts, productId, month],
   );
 
-  useEffect(() => {
-    if (existingPost) {
-      setTitle(existingPost.title);
-      setContent(existingPost.content);
-    } else {
-      setTitle('');
-      setContent('');
-    }
+  const [prevMonth, setPrevMonth] = useState(month);
+  if (month !== prevMonth) {
+    setPrevMonth(month);
+    setTitle(existingPost?.title ?? '');
+    setContent(existingPost?.content ?? '');
     setStatus({ kind: 'idle' });
-  }, [existingPost, month]);
+  }
 
   const isUpdate = Boolean(existingPost);
   const isSaving = status.kind === 'saving';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Bar,
   BarChart,
@@ -27,14 +27,15 @@ const ACTIVITY_FROM_SOURCE: Record<string, ActivityType> = {
 
 type TimeSeriesChartProps = {
   emissions: GhgEmission[];
+  startMonth: string;
+  endMonth: string;
 };
 
-export default function TimeSeriesChart({ emissions }: TimeSeriesChartProps) {
-  const [startMonth, setStartMonth] = useState<string>(ALL_MONTHS_2025[0]);
-  const [endMonth, setEndMonth] = useState<string>(
-    ALL_MONTHS_2025[ALL_MONTHS_2025.length - 1],
-  );
-
+export default function TimeSeriesChart({
+  emissions,
+  startMonth,
+  endMonth,
+}: TimeSeriesChartProps) {
   const data = useMemo(() => {
     const months = ALL_MONTHS_2025.filter(
       (m) => m >= startMonth && m <= endMonth,
@@ -54,43 +55,22 @@ export default function TimeSeriesChart({ emissions }: TimeSeriesChartProps) {
     });
   }, [emissions, startMonth, endMonth]);
 
+  const periodTotal = useMemo(
+    () => data.reduce((sum, d) => sum + d.전기 + d.원소재 + d.운송, 0),
+    [data],
+  );
+
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-900">월별 배출량 추이</h3>
-          <p className="mt-1 text-xs text-zinc-500">활동 유형별 스택 바 (kgCO₂e)</p>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <label className="flex items-center gap-1">
-            <span className="text-zinc-500">시작</span>
-            <select
-              value={startMonth}
-              onChange={(e) => setStartMonth(e.target.value)}
-              className="rounded border border-zinc-300 bg-white px-2 py-1"
-            >
-              {ALL_MONTHS_2025.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-1">
-            <span className="text-zinc-500">종료</span>
-            <select
-              value={endMonth}
-              onChange={(e) => setEndMonth(e.target.value)}
-              className="rounded border border-zinc-300 bg-white px-2 py-1"
-            >
-              {ALL_MONTHS_2025.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <div>
+        <h3 className="text-sm font-semibold text-zinc-900">월별 배출량 추이</h3>
+        <p className="mt-1 text-xs text-zinc-500">활동 유형별 스택 바 (kgCO₂e)</p>
+        <p className="mt-2 text-xs text-zinc-500">
+          기간 총 배출량 ({startMonth} ~ {endMonth})
+        </p>
+        <p className="text-xl font-semibold text-zinc-900">
+          {formatKgCO2e(periodTotal)}
+        </p>
       </div>
 
       <div className="mt-4 h-72">

@@ -82,6 +82,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Initial data fetch on mount. The setState calls happen inside refetch
+    // (loading flag + final data set), which is the canonical Context-based
+    // fetch-on-mount pattern. React Query / Suspense are out of scope here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
   }, [refetch]);
 

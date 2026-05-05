@@ -7,9 +7,9 @@ import {
   products as seedProducts,
 } from '@/lib/data/seed';
 
-let _countries: Country[] = [...seedCountries];
-let _companies: Company[] = [...seedCompanies];
-let _products: Product[] = [...seedProducts];
+const _countries: Country[] = [...seedCountries];
+const _companies: Company[] = [...seedCompanies];
+const _products: Product[] = [...seedProducts];
 let _activityData: ActivityData[] = [...seedActivityData];
 let _posts: Post[] = [...seedPosts];
 

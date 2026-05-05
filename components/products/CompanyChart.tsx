@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Company, GhgEmission } from '@/lib/types';
+import { Company, GhgEmission, Product } from '@/lib/types';
 import {
   SCOPE_COLORS,
   formatKgCO2e,
@@ -20,24 +20,31 @@ import {
 
 type CompanyChartProps = {
   companies: Company[];
+  products: Product[];
   emissions: GhgEmission[];
 };
 
-export default function CompanyChart({ companies, emissions }: CompanyChartProps) {
+export default function CompanyChart({
+  companies,
+  products,
+  emissions,
+}: CompanyChartProps) {
   const data = useMemo(() => {
     return companies.map((company) => {
       const companyEmissions = emissions.filter(
         (e) => e.companyId === company.id,
       );
+      const companyProducts = products.filter((p) => p.companyId === company.id);
       return {
         name: company.name,
         country: company.country,
+        productNames: companyProducts.map((p) => p.name),
         scope2: sumEmissions(companyEmissions.filter((e) => e.scope === 'scope2')),
         scope3: sumEmissions(companyEmissions.filter((e) => e.scope === 'scope3')),
         total: sumEmissions(companyEmissions),
       };
     });
-  }, [companies, emissions]);
+  }, [companies, products, emissions]);
 
   const hasData = data.some((d) => d.total > 0);
 
@@ -45,7 +52,7 @@ export default function CompanyChart({ companies, emissions }: CompanyChartProps
     <div className="rounded-lg border border-zinc-200 bg-white p-5">
       <h3 className="text-sm font-semibold text-zinc-900">회사별 배출량 비교</h3>
       <p className="mt-1 text-xs text-zinc-500">
-        회사별 Scope 2/3 누적 배출량 (kgCO₂e)
+        각 회사가 보유한 모든 제품 활동 데이터의 Scope 2/3 누적 합 (kgCO₂e, 전 기간)
       </p>
 
       <div className="mt-4 h-64">
@@ -88,13 +95,20 @@ export default function CompanyChart({ companies, emissions }: CompanyChartProps
         </p>
       )}
 
-      <ul className="mt-3 space-y-1 text-xs">
+      <ul className="mt-3 space-y-2 text-xs">
         {data.map((d) => (
-          <li key={d.name} className="flex justify-between">
-            <span className="text-zinc-700">
-              {d.name} <span className="text-zinc-400">({d.country})</span>
-            </span>
-            <span className="text-zinc-600">{formatKgCO2e(d.total)}</span>
+          <li key={d.name} className="flex flex-col gap-0.5">
+            <div className="flex justify-between">
+              <span className="text-zinc-700">
+                {d.name} <span className="text-zinc-400">({d.country})</span>
+              </span>
+              <span className="text-zinc-600">{formatKgCO2e(d.total)}</span>
+            </div>
+            <p className="text-zinc-400">
+              포함 제품:{' '}
+              {d.productNames.length > 0 ? d.productNames.join(', ') : '없음'}
+              {d.productNames.length > 0 && ` (${d.productNames.length}개)`}
+            </p>
           </li>
         ))}
       </ul>

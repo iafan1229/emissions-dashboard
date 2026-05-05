@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import CompanyChart from '@/components/products/CompanyChart';
 import LcaStageChart from '@/components/products/LcaStageChart';
+import PeriodFilter from '@/components/products/PeriodFilter';
 import ReportForm from '@/components/products/ReportForm';
 import ScopeChart from '@/components/products/ScopeChart';
 import TimeSeriesChart from '@/components/products/TimeSeriesChart';
@@ -12,7 +13,11 @@ import ErrorMessage from '@/components/ui/ErrorMessage';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useData } from '@/lib/contexts/DataContext';
 import { calculateEmissions } from '@/lib/utils/calculateEmissions';
-import { formatKgCO2e, sumEmissions } from '@/lib/utils/chartHelpers';
+import {
+  ALL_MONTHS_2025,
+  formatKgCO2e,
+  sumEmissions,
+} from '@/lib/utils/chartHelpers';
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
@@ -26,6 +31,11 @@ export default function ProductDetailPage() {
     error,
     refetch,
   } = useData();
+
+  const [startMonth, setStartMonth] = useState<string>(ALL_MONTHS_2025[0]);
+  const [endMonth, setEndMonth] = useState<string>(
+    ALL_MONTHS_2025[ALL_MONTHS_2025.length - 1],
+  );
 
   const product = useMemo(
     () => products.find((p) => p.id === productId),
@@ -44,14 +54,22 @@ export default function ProductDetailPage() {
     return calculateEmissions(productActivities);
   }, [activityData, productId]);
 
+  const filteredProductEmissions = useMemo(
+    () =>
+      productEmissions.filter(
+        (e) => e.yearMonth >= startMonth && e.yearMonth <= endMonth,
+      ),
+    [productEmissions, startMonth, endMonth],
+  );
+
   const allEmissions = useMemo(
     () => calculateEmissions(activityData),
     [activityData],
   );
 
-  const totalEmissions = useMemo(
-    () => sumEmissions(productEmissions),
-    [productEmissions],
+  const filteredTotal = useMemo(
+    () => sumEmissions(filteredProductEmissions),
+    [filteredProductEmissions],
   );
 
   if (isLoading) {
@@ -89,27 +107,53 @@ export default function ProductDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-8 py-8">
-      <header className="flex flex-col gap-1">
+      <header className="flex flex-col gap-3">
         <Link
           href="/"
           className="text-xs text-zinc-500 hover:text-zinc-900"
         >
           ← 대시보드
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900">{product.name}</h1>
-        <p className="text-sm text-zinc-600">
-          {company?.name ?? '—'} · 기간 총 배출량{' '}
-          <span className="font-medium text-zinc-900">
-            {formatKgCO2e(totalEmissions)}
-          </span>
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-semibold text-zinc-900">
+              {product.name}
+            </h1>
+            <p className="text-sm text-zinc-600">
+              {company?.name ?? '—'} · 선택 기간 총 배출량{' '}
+              <span className="font-medium text-zinc-900">
+                {formatKgCO2e(filteredTotal)}
+              </span>
+            </p>
+          </div>
+          <PeriodFilter
+            startMonth={startMonth}
+            endMonth={endMonth}
+            onChange={(s, e) => {
+              setStartMonth(s);
+              setEndMonth(e);
+            }}
+          />
+        </div>
       </header>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <LcaStageChart emissions={productEmissions} />
-        <ScopeChart emissions={productEmissions} />
-        <TimeSeriesChart emissions={productEmissions} />
-        <CompanyChart companies={companies} emissions={allEmissions} />
+        <LcaStageChart emissions={filteredProductEmissions} />
+        <ScopeChart
+          emissions={filteredProductEmissions}
+          startMonth={startMonth}
+          endMonth={endMonth}
+        />
+        <TimeSeriesChart
+          emissions={filteredProductEmissions}
+          startMonth={startMonth}
+          endMonth={endMonth}
+        />
+        <CompanyChart
+          companies={companies}
+          products={products}
+          emissions={allEmissions}
+        />
       </section>
 
       <section>

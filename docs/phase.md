@@ -9,7 +9,7 @@
 | 2 | Context Provider + 공통 레이아웃 + 대시보드 메인 | §7~8 | ✅ 완료 |
 | 3 | 제품 상세 페이지 + 4개 차트 + 리포트 작성 폼 | §9 | ✅ 완료 |
 | 4 | 리포트 목록 + 활동 데이터 입력 폼 | §10~11 | ✅ 완료 |
-| 5 | README + 스크린샷/캡쳐 + 체크리스트 점검 | §13 | ⏳ 대기 |
+| 5 | README + 스크린샷/캡쳐 + 체크리스트 점검 | §13 | ✅ 완료 (스크린샷/영상은 사용자 작업) |
 
 ---
 
@@ -93,21 +93,26 @@
 
 ---
 
-## ⏳ Phase 5 — README + 스크린샷 + 체크리스트 점검
+## ✅ Phase 5 — README + 스크린샷 + 체크리스트 점검
 
-### 범위 (spec.md §13)
-- [README.md](../README.md) 작성:
-  - 로컬 실행 방법 (5단계 이내)
-  - AI 도구 사용 내역
-  - Assumptions (CLAUDE.md `## Assumptions` 동기화)
-  - 스크린샷 + 화면 캡쳐 비디오 링크
-- spec.md §13 체크리스트 전 항목 점검
-- (보너스) Docker Compose, OpenAPI 등은 시간 여유 시
+### 작업
+- [README.md](../README.md) 전면 재작성:
+  - 로컬 실행 5단계 이내 (clone → yarn install → yarn dev)
+  - 페이지 구성 + 공유 기간 필터 동작 설명
+  - **Assumptions** — CLAUDE.md `## Assumptions` 와 동기화 (PCF 계산 불가 / Scope 1 = 0 / 사용·폐기 데이터 없음 / 2025-05 중복 별개 처리 / Globex 더미 / Context API 확정)
+  - **AI 도구 사용 내역** — Claude Code 활용 범위 + 사람이 결정한 것/직접 한 것 분리
+  - Tech stack / 디렉토리 구조 / 평가 체크리스트
+- 빌드 차단 lint 오류 5개 정리:
+  - `lib/api.ts` 의 immutable refs (`_countries` 등) `let` → `const`
+  - `ReportForm.tsx` 의 effect-기반 reset 을 React 19 권장 "compare prev prop" 패턴으로 교체 (useEffect 제거)
+  - `DataContext.tsx` fetch-on-mount 는 canonical 패턴이라 disable + 사유 코멘트
+- `yarn build` 성공 (App Router 6 페이지 정상 generate)
 
 ### 검증
-- `yarn build` 성공
-- `yarn lint` 무경고
-- README 만 보고 5분 내에 새 환경에서 `yarn dev` 까지 도달 가능한지
+- `yarn lint` ✅ 무경고
+- `yarn type-check` ✅ 통과
+- `yarn build` ✅ 성공 (Static: `/`, `/_not-found`, `/activities/new`, `/reports`; Dynamic: `/products/[id]`)
+- spec.md §13 체크리스트 12/14 자동 충족, 나머지 2개 (GitHub public push, 화면 캡쳐 영상) 는 사용자 작업 영역
 
 ---
 
