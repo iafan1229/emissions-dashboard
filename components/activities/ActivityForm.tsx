@@ -46,10 +46,14 @@ const INITIAL_FORM: FormState = {
 
 export default function ActivityForm() {
   const router = useRouter();
-  const { companies, products, createActivity } = useData();
+  const { companies, products, createActivity, createProduct } = useData();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<Errors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [productSaveError, setProductSaveError] = useState<string | null>(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => p.companyId === form.companyId),
@@ -70,6 +74,39 @@ export default function ActivityForm() {
       return next;
     });
     setErrors((prev) => ({ ...prev, [key]: undefined, submit: undefined }));
+    if (key === 'companyId') {
+      setIsAddingProduct(false);
+      setNewProductName('');
+      setProductSaveError(null);
+    }
+  };
+
+  const handleSaveProduct = async () => {
+    const trimmed = newProductName.trim();
+    if (!trimmed) {
+      setProductSaveError('제품명을 입력해주세요.');
+      return;
+    }
+    setProductSaveError(null);
+    setIsSavingProduct(true);
+    try {
+      const created = await createProduct({
+        name: trimmed,
+        companyId: form.companyId,
+      });
+      setForm((prev) => ({ ...prev, productId: created.id }));
+      setErrors((prev) => ({ ...prev, productId: undefined }));
+      setIsAddingProduct(false);
+      setNewProductName('');
+    } catch (err) {
+      setProductSaveError(
+        err instanceof Error
+          ? `제품 추가에 실패했습니다. (${err.message})`
+          : '제품 추가에 실패했습니다.',
+      );
+    } finally {
+      setIsSavingProduct(false);
+    }
   };
 
   const validate = (): Errors => {
@@ -141,25 +178,81 @@ export default function ActivityForm() {
       </Field>
 
       <Field label="제품" error={errors.productId} required>
-        <select
-          value={form.productId}
-          onChange={(e) => update('productId', e.target.value)}
-          disabled={!form.companyId || noProducts}
-          className={fieldCls(!!errors.productId)}
-        >
-          <option value="">
-            {!form.companyId
-              ? '— 회사를 먼저 선택하세요 —'
-              : noProducts
-                ? '— 등록된 제품이 없습니다 —'
-                : '— 선택 —'}
-          </option>
-          {filteredProducts.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+        <div className="flex flex-col gap-2">
+          <select
+            value={form.productId}
+            onChange={(e) => update('productId', e.target.value)}
+            disabled={!form.companyId}
+            className={fieldCls(!!errors.productId)}
+          >
+            <option value="">
+              {!form.companyId
+                ? '— 회사를 먼저 선택하세요 —'
+                : noProducts
+                  ? '— 등록된 제품이 없습니다, 아래에서 추가 —'
+                  : '— 선택 —'}
             </option>
-          ))}
-        </select>
+            {filteredProducts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+
+          {form.companyId && !isAddingProduct && (
+            <button
+              type="button"
+              onClick={() => setIsAddingProduct(true)}
+              className="self-start text-xs text-zinc-700 underline hover:text-zinc-900"
+            >
+              + 새 제품 추가
+            </button>
+          )}
+
+          {form.companyId && isAddingProduct && (
+            <div className="flex flex-col gap-2 rounded border border-zinc-200 bg-zinc-50 p-3">
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="text-zinc-700">제품명</span>
+                <input
+                  type="text"
+                  value={newProductName}
+                  onChange={(e) => {
+                    setNewProductName(e.target.value);
+                    setProductSaveError(null);
+                  }}
+                  placeholder="예: 컴퓨터 화면 CT-046"
+                  className={fieldCls(!!productSaveError)}
+                  disabled={isSavingProduct}
+                />
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveProduct}
+                  disabled={isSavingProduct}
+                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                >
+                  {isSavingProduct ? '추가 중...' : '추가'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingProduct(false);
+                    setNewProductName('');
+                    setProductSaveError(null);
+                  }}
+                  disabled={isSavingProduct}
+                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-white"
+                >
+                  취소
+                </button>
+                {productSaveError && (
+                  <span className="text-xs text-red-600">{productSaveError}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </Field>
 
       <Field label="일자" error={errors.date} required>

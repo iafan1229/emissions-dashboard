@@ -9,7 +9,7 @@ import {
 
 const _countries: Country[] = [...seedCountries];
 const _companies: Company[] = [...seedCompanies];
-const _products: Product[] = [...seedProducts];
+let _products: Product[] = [...seedProducts];
 let _activityData: ActivityData[] = [...seedActivityData];
 let _posts: Post[] = [...seedPosts];
 
@@ -68,5 +68,15 @@ export async function createActivity(
   if (maybeFail()) throw new Error('Save failed');
   const created: ActivityData = { ...a, id: crypto.randomUUID() };
   _activityData = [..._activityData, created];
+  return created;
+}
+
+export async function createProduct(
+  p: Omit<Product, 'id'>,
+): Promise<Product> {
+  await delay(jitter());
+  if (maybeFail()) throw new Error('Save failed');
+  const created: Product = { ...p, id: crypto.randomUUID() };
+  _products = [..._products, created];
   return created;
 }

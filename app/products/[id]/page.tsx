@@ -62,11 +62,6 @@ export default function ProductDetailPage() {
     [productEmissions, startMonth, endMonth],
   );
 
-  const allEmissions = useMemo(
-    () => calculateEmissions(activityData),
-    [activityData],
-  );
-
   const filteredTotal = useMemo(
     () => sumEmissions(filteredProductEmissions),
     [filteredProductEmissions],
@@ -151,8 +146,7 @@ export default function ProductDetailPage() {
         />
         <CompanyChart
           companies={companies}
-          products={products}
-          emissions={allEmissions}
+          emissions={filteredProductEmissions}
         />
       </section>
 

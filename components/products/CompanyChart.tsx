@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Company, GhgEmission, Product } from '@/lib/types';
+import { Company, GhgEmission } from '@/lib/types';
 import {
   SCOPE_COLORS,
   formatKgCO2e,
@@ -20,13 +20,11 @@ import {
 
 type CompanyChartProps = {
   companies: Company[];
-  products: Product[];
   emissions: GhgEmission[];
 };
 
 export default function CompanyChart({
   companies,
-  products,
   emissions,
 }: CompanyChartProps) {
   const data = useMemo(() => {
@@ -34,17 +32,16 @@ export default function CompanyChart({
       const companyEmissions = emissions.filter(
         (e) => e.companyId === company.id,
       );
-      const companyProducts = products.filter((p) => p.companyId === company.id);
       return {
         name: company.name,
         country: company.country,
-        productNames: companyProducts.map((p) => p.name),
+        scope1: sumEmissions(companyEmissions.filter((e) => e.scope === 'scope1')),
         scope2: sumEmissions(companyEmissions.filter((e) => e.scope === 'scope2')),
         scope3: sumEmissions(companyEmissions.filter((e) => e.scope === 'scope3')),
         total: sumEmissions(companyEmissions),
       };
     });
-  }, [companies, products, emissions]);
+  }, [companies, emissions]);
 
   const hasData = data.some((d) => d.total > 0);
 
@@ -52,7 +49,10 @@ export default function CompanyChart({
     <div className="rounded-lg border border-zinc-200 bg-white p-5">
       <h3 className="text-sm font-semibold text-zinc-900">회사별 배출량 비교</h3>
       <p className="mt-1 text-xs text-zinc-500">
-        각 회사가 보유한 모든 제품 활동 데이터의 Scope 2/3 누적 합 (kgCO₂e, 전 기간)
+        해당 제품의 회사별 Scope 1/2/3 누적 합 (kgCO₂e, 선택 기간 기준)
+      </p>
+      <p className="mt-1 text-xs text-zinc-400">
+        Scope 1 은 데이터 없음 → 0 으로 표시 (GHG 프레임워크 유지)
       </p>
 
       <div className="mt-4 h-64">
@@ -74,6 +74,12 @@ export default function CompanyChart({
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar
+              dataKey="scope1"
+              name="Scope 1"
+              stackId="c"
+              fill={SCOPE_COLORS.scope1}
+            />
+            <Bar
               dataKey="scope2"
               name="Scope 2"
               stackId="c"
@@ -91,24 +97,20 @@ export default function CompanyChart({
 
       {!hasData && (
         <p className="mt-2 text-xs text-zinc-500">
-          모든 회사의 배출량이 0 입니다.
+          이 제품을 보유한 회사의 선택 기간 배출량이 없습니다.
         </p>
       )}
 
-      <ul className="mt-3 space-y-2 text-xs">
+      <ul className="mt-3 space-y-1 text-xs">
         {data.map((d) => (
-          <li key={d.name} className="flex flex-col gap-0.5">
-            <div className="flex justify-between">
-              <span className="text-zinc-700">
-                {d.name} <span className="text-zinc-400">({d.country})</span>
-              </span>
-              <span className="text-zinc-600">{formatKgCO2e(d.total)}</span>
-            </div>
-            <p className="text-zinc-400">
-              포함 제품:{' '}
-              {d.productNames.length > 0 ? d.productNames.join(', ') : '없음'}
-              {d.productNames.length > 0 && ` (${d.productNames.length}개)`}
-            </p>
+          <li key={d.name} className="flex justify-between">
+            <span className="text-zinc-700">
+              {d.name} <span className="text-zinc-400">({d.country})</span>
+              {d.total === 0 && (
+                <span className="ml-1 text-zinc-400">— 이 제품 미보유</span>
+              )}
+            </span>
+            <span className="text-zinc-600">{formatKgCO2e(d.total)}</span>
           </li>
         ))}
       </ul>
