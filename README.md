@@ -9,22 +9,19 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 > PCF 를 구성하는 전과정 단계별 (원료조달 / 제조 / 운송유통) 배출량을 LCA × GHG Scope 관점에서 시각화한다.
 > 자세한 근거는 [decision.md #0](decision.md) 참고.
 
+---
 
 ## 프로젝트 실행 방법 - 로컬 실행 방법 (*필수로 읽어주세요!)
+
 📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a800b9507c28f31ae8b34
 
+---
 
 ## 스크린샷 / 데모 영상
 
-> ⚠️ 캡쳐 첨부 위치 — 제출 시 아래에 추가:
->
-> - 대시보드 메인 (`/`) 스크린샷
-> - 제품 상세 (`/products/ct-045`) — 기간 필터 동작 비포/애프터
-> - 리포트 작성 + 저장 실패 시 롤백 시연
-> - 활동 데이터 입력 폼 + 유효성 검사 에러 메시지
-> - 화면 캡쳐 영상 링크 (Loom / YouTube 등)
+📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a800b9507c28f31ae8b34
 
-
+---
 
 ## 사용 AI 도구 - CLAUDE CODE
 > **docs 폴더에 해당 작업내역이 기록되어 있습니다.
@@ -32,6 +29,70 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 - docs/spec.md (구체적인 실행계획)
 - docs/decision.md (트레이드오프)
 - docs/db.md (디비 설계 관련 실행계획)
+
+---
+
+## 시스템 개요 & 설계
+
+### 아키텍처 (계층 구조)
+<img src="structure.png" alt="ERD" width="600" />
+
+
+**부분 영속화**: 임포트 대상이 되는 활동 데이터(`ActivityData`)와 임포트 이력(`ImportBatch`)만 PostgreSQL로 영속하고, 나머지(회사·제품·국가·배출계수·Post)는 in-memory fake backend 그대로 둔다. 과제 보너스 항목인 "Excel 임포트" 의 신뢰도(트랜잭션·중복 방지) 만 PG 로 강화하고, 마스터 데이터까지 무리하게 옮기지 않는 절충안.
+
+### 핵심 설계 결정 (요약 — 상세는 [docs/decision.md](docs/decision.md), [docs/db.md](docs/db.md))
+
+| # | 결정 | 트레이드오프 |
+|---|------|--------------|
+| D0 | **PCF 계산 → 전과정 배출량 시각화로 재해석** (생산 수량 데이터 부재) | 과제 제목과 구현 사이 ambiguity → README/decision.md 에 명시적 기록 |
+| D1 | **부분 PG 교체** (ActivityData/ImportBatch 만 PG, 마스터는 fake backend) | 두 개 영속소스 공존 (대신 코드 단순성·구현 시간 확보) |
+| D2 | **ImportBatch 1:N ActivityData** (`onDelete: Cascade`) | 단일 테이블 대비 join 비용 ↑ — 배치 단위 롤백·이력 조회를 얻음 |
+| D3 | **xlsx 검증 실패 1행 → 전체 거부 + 단일 트랜잭션** | 부분 임포트 불가 — 데이터 무결성 우선 |
+| D4 | **중복 거부**: `(companyId, productId, date, activityType, description, amount)` unique | 동일 활동을 일부러 두 번 입력 불가 — 같은 날 다른 description 으로만 구분 가능 |
+| D5 | **상태관리: Context API + custom hooks** (Zustand 미채택) | 보일러플레이트 ↑ — 외부 의존성 제거, 학습 곡선 ↓ |
+| D6 | **낙관적 업데이트 + 실패 시 롤백** (`createOrUpdatePost` 15% 실패 시뮬레이션 대응) | 코드 복잡도 ↑ — 빠른 UI 응답 + 실패 투명성 |
+| D7 | **배출계수를 `lib/constants/emissionFactors.ts` 단일 소스로 분리** (xlsx 의 H~J 컬럼 무시) | 임포트 데이터의 배출계수 컬럼이 사실상 무시됨 — 정책 변경 시 한 곳만 수정 |
+| D8 | **Scope 1 = 0 명시 / 사용·폐기 = "데이터 없음" 명시** | 차트가 비어 보일 수 있음 — GHG 프레임워크 완결성 유지 |
+
+### 데이터 흐름 (3가지 경로)
+
+**① Excel 일괄 임포트** (`/imports/new`)
+```
+User → ImportForm (회사·제품 선택 + xlsx 첨부)
+     → POST /api/imports
+        → SheetJS 파싱 (헤더 3행 스킵)
+        → 행 단위 검증 (필수값·활동유형·숫자·양수)
+        → 1행이라도 실패 → 전체 거부 (400)
+        → 중복 검사 (existing findMany)
+        → 중복 발견 → 거부 (409)
+        → prisma.$transaction: ImportBatch 생성 + ActivityData createMany
+     → DataContext.refetch → 차트 갱신
+```
+
+**② 수동 활동 입력 / 회사·제품 추가** (`/activities/new`)
+```
+User → ActivityForm (회사 cascade 제품, 활동→설명/단위 자동 연동)
+     → DataContext.createCompany / createProduct / addActivity
+        → 낙관적 업데이트 (UI 즉시 반영)
+        → POST /api/activities (활동의 경우)
+        → 실패 시 prevState 로 롤백 + ErrorMessage
+```
+
+**③ 리포트 작성** (`/products/[id]` → `/reports`)
+```
+User → ReportForm (월 선택 + 본문)
+     → DataContext.createOrUpdatePost
+        → 낙관적 추가
+        → fake backend (15% 실패율)
+        → 실패 시 롤백 + 재시도 가능
+     → /reports 에서 전체 목록 조회
+```
+
+### 모듈 분리 원칙
+
+- **UI ↔ 상태 ↔ API ↔ DB** 의 4계층을 명확히 분리. 컴포넌트는 `useData()` 훅만 호출하고 fetch/Prisma 를 직접 다루지 않음.
+- **배출계수**는 코드 단일 소스 (`lib/constants/emissionFactors.ts`) — `version`, `effectiveDate` 필드까지 포함시켜 향후 DB 이전 가능성을 열어둠.
+- **계산 로직** (`lib/utils/calculateEmissions.ts`) 은 순수 함수 — 컴포넌트에서 로컬 메모이제이션만 적용.
 
 ---
 
@@ -50,10 +111,11 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 | API | Next.js Route Handlers (`/api/activities`, `/api/imports`) |
 | Excel 파싱 | xlsx (SheetJS) — 헤더 3행 스킵, 행 단위 검증 + 중복 거부 |
 
+---
 
 ## ERD
 
-![ERD](erd.png)
+<img src="erd.png" alt="ERD" width="600" />
 
 <details>
 <summary>Mermaid 소스 (보기)</summary>
