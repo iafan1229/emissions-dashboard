@@ -15,6 +15,8 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 
 📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a800b9507c28f31ae8b34?pvs=74
 
+📄 **Swagger 실행 안내**: https://editor.swagger.io 에 docs/openapi.yaml 파일 내용을 붙여넣으면 스웨거를 인터랙티브 미리보기 하실수 있습니다.
+
 ---
 
 ## 스크린샷 / 데모 영상
@@ -29,6 +31,7 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 - docs/spec.md (구체적인 실행계획)
 - docs/decision.md (트레이드오프)
 - docs/db.md (디비 설계 관련 실행계획)
+- docs/openapi.yaml (API 명세 — OpenAPI 3.0)
 
 ---
 

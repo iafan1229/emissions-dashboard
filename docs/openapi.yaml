@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: Emissions Dashboard API
+  description: |
+    HanaLoop Emissions Dashboard 의 Next.js Route Handler API 명세.
+
+    PostgreSQL 로 영속되는 두 리소스(`ActivityData`, `ImportBatch`)에 접근하는 엔드포인트만 포함한다.
+    회사·제품·국가·배출계수·Post 는 fake backend (in-memory) 에서 처리되므로 본 명세 범위 밖이다.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:3000
+    description: 로컬 개발 서버
+
+tags:
+  - name: activities
+    description: 활동 데이터 조회 (PostgreSQL)
+  - name: imports
+    description: Excel(.xlsx) 일괄 임포트
+
+paths:
+  /api/activities:
+    get:
+      tags: [activities]
+      summary: 활동 데이터 조회
+      description: |
+        PostgreSQL 의 `ActivityData` 테이블을 조회한다.
+        `productId` 가 주어지면 해당 제품의 활동만 반환하고, 없으면 전체를 반환한다.
+        각 row 의 `productName` 은 연결된 `ImportBatch.productName` 에서 채워진다.
+      parameters:
+        - in: query
+          name: productId
+          required: false
+          schema:
+            type: string
+          description: 필터링할 제품 ID (예 — `ct-045`)
+          example: ct-045
+      responses:
+        '200':
+          description: 활동 데이터 배열
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityData'
+              examples:
+                ct-045:
+                  summary: CT-045 제품 활동 데이터 (일부)
+                  value:
+                    - id: ckabc123xyz
+                      date: '2025-01-01'
+                      activityType: 전기
+                      description: 한국전력
+                      amount: 110
+                      unit: kWh
+                      productId: ct-045
+                      companyId: c1
+                      productName: 컴퓨터 화면 CT-045
+
+  /api/imports:
+    post:
+      tags: [imports]
+      summary: Excel(.xlsx) 일괄 임포트
+      description: |
+        `multipart/form-data` 로 회사·제품 메타데이터와 xlsx 파일을 받아
+        다음 절차를 한 트랜잭션으로 수행한다:
+
+        1. xlsx 파싱 (헤더 3행 스킵, 첫 번째 시트만 사용)
+        2. 행 단위 검증 (필수 컬럼 누락·활동유형·숫자·양수)
+        3. 검증 실패 1건이라도 발견되면 **전체 거부** (400)
+        4. 동일 `(companyId, productId, date, activityType, description, amount)` 조합 중복 검사 → 1건이라도 있으면 **거부** (409)
+        5. `ImportBatch` 생성 + `ActivityData.createMany` 를 단일 `prisma.$transaction` 으로 INSERT
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [companyId, productId, productName, file]
+              properties:
+                companyId:
+                  type: string
+                  description: 회사 ID (fake backend 의 `Company.id`)
+                  example: c1
+                productId:
+                  type: string
+                  description: 제품 ID (fake backend 의 `Product.id`)
+                  example: ct-045
+                productName:
+                  type: string
+                  description: 제품명 (`ImportBatch.productName` 에 저장)
+                  example: 컴퓨터 화면 CT-045
+                file:
+                  type: string
+                  format: binary
+                  description: 업로드할 xlsx 파일 (.xlsx 확장자만 허용)
+      responses:
+        '200':
+          description: 임포트 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [batchId, rowCount]
+                properties:
+                  batchId:
+                    type: string
+                    description: 생성된 `ImportBatch.id`
+                    example: ckxyz987abc
+                  rowCount:
+                    type: integer
+                    description: INSERT 된 활동 데이터 행 수
+                    example: 30
+        '400':
+          description: 요청·파싱·검증 오류 (전체 거부)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportValidationError'
+              examples:
+                missingField:
+                  summary: 필드 누락
+                  value:
+                    error: companyId 누락
+                invalidExtension:
+                  summary: 확장자 오류
+                  value:
+                    error: .xlsx 파일만 업로드 가능합니다.
+                rowValidation:
+                  summary: 행 단위 검증 실패
+                  value:
+                    error: 검증 실패 2건. 임포트가 거부되었습니다.
+                    failures:
+                      - row: 5
+                        message: 일자 누락
+                      - row: 7
+                        message: '활동 유형 무효: "기타" (가능: 전기, 원소재, 운송)'
+                emptyParse:
+                  summary: 유효 행 0건
+                  value:
+                    error: 파일에서 유효한 행을 찾지 못했습니다.
+        '409':
+          description: 중복 데이터 발견 (전체 거부)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportDuplicateError'
+              examples:
+                duplicates:
+                  summary: 중복 행 존재
+                  value:
+                    error: 이미 등록된 1건의 중복 데이터가 발견되어 임포트가 거부되었습니다.
+                    duplicates:
+                      - date: '2025-01-01'
+                        activityType: 전기
+                        description: 한국전력
+                        amount: '110'
+        '500':
+          description: 트랜잭션 중 DB 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 'imp 중 DB 오류: connection terminated'
+
+components:
+  schemas:
+    ActivityType:
+      type: string
+      enum: [전기, 원소재, 운송]
+
+    ActivityData:
+      type: object
+      description: API 응답 형식 (Prisma 모델을 직렬화한 결과)
+      required: [id, date, activityType, description, amount, unit, productId, companyId]
+      properties:
+        id:
+          type: string
+          description: cuid
+          example: ckabc123xyz
+        date:
+          type: string
+          format: date
+          description: 활동 일자 (YYYY-MM-DD)
+          example: '2025-01-01'
+        activityType:
+          $ref: '#/components/schemas/ActivityType'
+        description:
+          type: string
+          description: 활동 설명 (예 — `한국전력`, `플라스틱 1`, `트럭`)
+          example: 한국전력
+        amount:
+          type: number
+          description: 활동량 (Decimal(12,4) 을 number 로 직렬화)
+          example: 110
+        unit:
+          type: string
+          description: 단위 (예 — `kWh`, `kg`, `ton-km`)
+          example: kWh
+        productId:
+          type: string
+          example: ct-045
+        companyId:
+          type: string
+          example: c1
+        productName:
+          type: string
+          description: 연결된 ImportBatch 의 `productName` 이 join 되어 채워짐
+          example: 컴퓨터 화면 CT-045
+
+    RowError:
+      type: object
+      required: [row, message]
+      properties:
+        row:
+          type: integer
+          description: xlsx 의 1-기반 행 번호
+          example: 5
+        message:
+          type: string
+          example: 일자 누락
+
+    DuplicateRow:
+      type: object
+      required: [date, activityType, description, amount]
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-01-01'
+        activityType:
+          $ref: '#/components/schemas/ActivityType'
+        description:
+          type: string
+          example: 한국전력
+        amount:
+          type: string
+          description: Decimal 을 문자열로 직렬화
+          example: '110'
+
+    ImportValidationError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        failures:
+          type: array
+          description: 행 단위 검증 실패 (있을 때만 포함)
+          items:
+            $ref: '#/components/schemas/RowError'
+
+    ImportDuplicateError:
+      type: object
+      required: [error, duplicates]
+      properties:
+        error:
+          type: string
+        duplicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/DuplicateRow'
