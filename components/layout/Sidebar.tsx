@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: '/', label: '대시보드' },
   { href: '/reports', label: '리포트' },
   { href: '/activities/new', label: '활동 데이터 입력' },
+  { href: '/imports/new', label: '활동 데이터 임포트' },
 ] as const;
 
 export default function Sidebar() {

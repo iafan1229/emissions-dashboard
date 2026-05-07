@@ -37,10 +37,17 @@ export default function ProductDetailPage() {
     ALL_MONTHS_2025[ALL_MONTHS_2025.length - 1],
   );
 
-  const product = useMemo(
-    () => products.find((p) => p.id === productId),
-    [products, productId],
-  );
+  const product = useMemo(() => {
+    const found = products.find((p) => p.id === productId);
+    if (found) return found;
+    const sample = activityData.find((a) => a.productId === productId);
+    if (!sample) return undefined;
+    return {
+      id: productId,
+      name: sample.productName ?? `제품 ${productId.slice(0, 8)}`,
+      companyId: sample.companyId,
+    };
+  }, [products, activityData, productId]);
 
   const company = useMemo(
     () => companies.find((c) => c.id === product?.companyId),

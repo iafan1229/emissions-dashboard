@@ -28,6 +28,7 @@ export type ActivityData = {
   unit: string;
   productId: string;
   companyId: string;
+  productName?: string;
 };
 
 export type EmissionFactor = {

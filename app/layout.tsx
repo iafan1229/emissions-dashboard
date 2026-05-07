@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-zinc-50 text-zinc-900">
+      <body cz-shortcut-listen="true" className="min-h-full bg-zinc-50 text-zinc-900">
         <DataProvider>
           <div className="flex min-h-screen">
             <Sidebar />

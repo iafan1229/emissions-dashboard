@@ -32,14 +32,31 @@ export async function fetchProducts(): Promise<Product[]> {
   return _products;
 }
 
+async function fetchPgActivities(productId?: string): Promise<ActivityData[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const url = productId
+      ? `/api/activities?productId=${encodeURIComponent(productId)}`
+      : '/api/activities';
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return (await res.json()) as ActivityData[];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchActivityData(productId: string): Promise<ActivityData[]> {
   await delay(jitter());
-  return _activityData.filter((a) => a.productId === productId);
+  const fake = _activityData.filter((a) => a.productId === productId);
+  const pg = await fetchPgActivities(productId);
+  return [...fake, ...pg];
 }
 
 export async function fetchAllActivities(): Promise<ActivityData[]> {
   await delay(jitter());
-  return _activityData;
+  const pg = await fetchPgActivities();
+  return [..._activityData, ...pg];
 }
 
 export async function fetchPosts(): Promise<Post[]> {

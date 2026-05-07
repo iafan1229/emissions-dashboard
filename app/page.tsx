@@ -1,12 +1,29 @@
 'use client';
 
+import { useMemo } from 'react';
 import ProductCard from '@/components/dashboard/ProductCard';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useData } from '@/lib/contexts/DataContext';
+import { Product } from '@/lib/types';
 
 export default function DashboardPage() {
-  const { products, isLoading, error, refetch } = useData();
+  const { products, activityData, isLoading, error, refetch } = useData();
+
+  const allProducts = useMemo<Product[]>(() => {
+    const byId = new Map<string, Product>();
+    for (const p of products) byId.set(p.id, p);
+    for (const a of activityData) {
+      if (!byId.has(a.productId)) {
+        byId.set(a.productId, {
+          id: a.productId,
+          name: a.productName ?? `제품 ${a.productId.slice(0, 8)}`,
+          companyId: a.companyId,
+        });
+      }
+    }
+    return Array.from(byId.values());
+  }, [products, activityData]);
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-8 py-8">
@@ -28,7 +45,7 @@ export default function DashboardPage() {
 
       {!isLoading && !error && (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
+          {allProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </section>
