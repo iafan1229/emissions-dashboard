@@ -11,7 +11,7 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 
 ---
 
-## 프로젝트 실행 방법 - 로컬 실행 방법 (*필수로 읽어주세요!)
+## 프로젝트 실행 방법 - 로컬 실행 방법 및 Swagger (*필수로 읽어주세요!)
 
 📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a800b9507c28f31ae8b34?pvs=74
 
@@ -21,7 +21,7 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 
 ## 스크린샷 / 데모 영상
 
-📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a806db726e6c696a3db16
+📄 **데모 영상 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a806db726e6c696a3db16
 
 ---
 
