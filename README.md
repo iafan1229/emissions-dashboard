@@ -19,7 +19,7 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 
 ## 스크린샷 / 데모 영상
 
-📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a800b9507c28f31ae8b34
+📄 **프로젝트 문서 (Notion)**: https://pouncing-jaguar-da7.notion.site/3595d4f5ac7a806db726e6c696a3db16
 
 ---
 
@@ -53,46 +53,6 @@ Next.js 16 App Router + TypeScript + Tailwind + Recharts 로 구현.
 | D6 | **낙관적 업데이트 + 실패 시 롤백** (`createOrUpdatePost` 15% 실패 시뮬레이션 대응) | 코드 복잡도 ↑ — 빠른 UI 응답 + 실패 투명성 |
 | D7 | **배출계수를 `lib/constants/emissionFactors.ts` 단일 소스로 분리** (xlsx 의 H~J 컬럼 무시) | 임포트 데이터의 배출계수 컬럼이 사실상 무시됨 — 정책 변경 시 한 곳만 수정 |
 | D8 | **Scope 1 = 0 명시 / 사용·폐기 = "데이터 없음" 명시** | 차트가 비어 보일 수 있음 — GHG 프레임워크 완결성 유지 |
-
-### 데이터 흐름 (3가지 경로)
-
-**① Excel 일괄 임포트** (`/imports/new`)
-```
-User → ImportForm (회사·제품 선택 + xlsx 첨부)
-     → POST /api/imports
-        → SheetJS 파싱 (헤더 3행 스킵)
-        → 행 단위 검증 (필수값·활동유형·숫자·양수)
-        → 1행이라도 실패 → 전체 거부 (400)
-        → 중복 검사 (existing findMany)
-        → 중복 발견 → 거부 (409)
-        → prisma.$transaction: ImportBatch 생성 + ActivityData createMany
-     → DataContext.refetch → 차트 갱신
-```
-
-**② 수동 활동 입력 / 회사·제품 추가** (`/activities/new`)
-```
-User → ActivityForm (회사 cascade 제품, 활동→설명/단위 자동 연동)
-     → DataContext.createCompany / createProduct / addActivity
-        → 낙관적 업데이트 (UI 즉시 반영)
-        → POST /api/activities (활동의 경우)
-        → 실패 시 prevState 로 롤백 + ErrorMessage
-```
-
-**③ 리포트 작성** (`/products/[id]` → `/reports`)
-```
-User → ReportForm (월 선택 + 본문)
-     → DataContext.createOrUpdatePost
-        → 낙관적 추가
-        → fake backend (15% 실패율)
-        → 실패 시 롤백 + 재시도 가능
-     → /reports 에서 전체 목록 조회
-```
-
-### 모듈 분리 원칙
-
-- **UI ↔ 상태 ↔ API ↔ DB** 의 4계층을 명확히 분리. 컴포넌트는 `useData()` 훅만 호출하고 fetch/Prisma 를 직접 다루지 않음.
-- **배출계수**는 코드 단일 소스 (`lib/constants/emissionFactors.ts`) — `version`, `effectiveDate` 필드까지 포함시켜 향후 DB 이전 가능성을 열어둠.
-- **계산 로직** (`lib/utils/calculateEmissions.ts`) 은 순수 함수 — 컴포넌트에서 로컬 메모이제이션만 적용.
 
 ---
 
